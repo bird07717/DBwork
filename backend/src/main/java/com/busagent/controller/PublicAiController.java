@@ -45,6 +45,7 @@ public class PublicAiController {
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("question", request.question());
+        payload.put("model", request.model());
         payload.put("route", route);
         payload.put("startDate", startDate.toString());
         payload.put("endDate", endDate.toString());
@@ -58,6 +59,7 @@ public class PublicAiController {
 
     public record AnalyzeRequest(
             String question,
+            String model,
             long routeId,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate

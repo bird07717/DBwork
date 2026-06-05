@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 class AnalyzeFlowRequest(BaseModel):
     question: str | None = None
+    model: str | None = None
     route: dict[str, Any] = Field(default_factory=dict)
     startDate: str
     endDate: str

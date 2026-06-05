@@ -23,7 +23,13 @@
       </el-tabs>
       <el-alert v-if="errorText" :title="errorText" type="error" show-icon style="margin-bottom: 12px" />
       <el-table :data="records" height="560" border v-loading="loading" empty-text="暂无数据，请确认已重新登录后台">
-        <el-table-column v-for="col in activeMeta.columns" :key="col.prop" :prop="col.prop" :label="col.label" min-width="120" show-overflow-tooltip />
+        <el-table-column v-for="col in activeMeta.columns" :key="col.prop" :prop="col.prop" :label="col.label" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-tag v-if="isStatusColumn(col.prop)" :type="statusTag(row[col.prop])" effect="light">{{ formatCell(row, col.prop) }}</el-tag>
+            <el-tag v-else-if="isPeriodColumn(col.prop)" type="warning" effect="light">{{ formatCell(row, col.prop) }}</el-tag>
+            <span v-else>{{ formatCell(row, col.prop) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column v-if="activeMeta.editable" label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
@@ -189,6 +195,39 @@ async function remove(row: Record<string, unknown>) {
 
 function toSnake(value: string) {
   return value.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
+}
+
+function isStatusColumn(prop: string) {
+  return prop === 'status'
+}
+
+function isPeriodColumn(prop: string) {
+  return prop === 'period_type' || prop === 'periodType'
+}
+
+function statusTag(value: unknown) {
+  const status = Number(value)
+  if (status === 1) return 'success'
+  if (status === 0) return 'info'
+  return 'warning'
+}
+
+function formatCell(row: Record<string, unknown>, prop: string) {
+  const value = row[prop]
+  if (value === null || value === undefined || value === '') return '-'
+  if (isStatusColumn(prop)) return Number(value) === 1 ? '启用' : Number(value) === 0 ? '停用' : String(value)
+  if (isPeriodColumn(prop)) return periodText(String(value))
+  if (prop.includes('time') || prop.includes('Time')) return String(value).replace('T', ' ')
+  if (prop === 'capacity') return `${value} 人`
+  if (typeof value === 'number' && (prop.includes('longitude') || prop.includes('latitude'))) return value.toFixed(6)
+  return String(value)
+}
+
+function periodText(value: string) {
+  if (value === 'morning_peak') return '早高峰'
+  if (value === 'evening_peak') return '晚高峰'
+  if (value === 'normal') return '正常时段'
+  return value || '-'
 }
 
 onMounted(load)

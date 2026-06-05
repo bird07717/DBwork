@@ -2,6 +2,12 @@
   <div class="map-panel" :class="`route-status-${routeStatus}`">
     <div ref="mapRef" class="map-canvas"></div>
     <div v-if="!mapReady" class="fallback-map">
+      <div class="fallback-road road-main"></div>
+      <div class="fallback-road road-vertical"></div>
+      <div class="fallback-road road-diagonal"></div>
+      <div class="fallback-district district-a">商业区</div>
+      <div class="fallback-district district-b">居住区</div>
+      <div class="fallback-district district-c">换乘区</div>
       <div class="fallback-line"></div>
       <span
         v-for="(station, index) in stations"
@@ -12,6 +18,16 @@
         :style="{ left: `${8 + (index / Math.max(stations.length - 1, 1)) * 84}%`, top: `${44 + (index % 5) * 3}%` }"
         @click="$emit('select-station', station.id)"
       ></span>
+      <div v-if="selectedStation" class="fallback-station-card" :class="`status-${flowLevel(selectedStation).replace('selected-', '')}`">
+        <span>当前站点</span>
+        <strong>{{ selectedStation.stationName }}</strong>
+        <em>近 7 日上车 {{ Number(selectedStation.boardingCount || 0).toLocaleString('zh-CN') }} 人次</em>
+      </div>
+      <div class="fallback-map-legend">
+        <span><i class="legend-high"></i>高客流</span>
+        <span><i class="legend-normal"></i>关注</span>
+        <span><i class="legend-low"></i>平稳</span>
+      </div>
       <div class="map-status">{{ mapStatus }}</div>
     </div>
   </div>
@@ -59,6 +75,8 @@ const flowThresholds = computed(() => {
   const low = counts[Math.floor((counts.length - 1) * 0.33)] || 0
   return { high, low, separated: high > low }
 })
+
+const selectedStation = computed(() => props.stations.find((station) => station.id === props.selectedStationId))
 
 const mapStatus = computed(() => {
   if (loading.value) return '腾讯地图加载中'

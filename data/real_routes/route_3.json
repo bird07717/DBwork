@@ -37,6 +37,7 @@
     { "stationOrder": 29, "stationName": "市一中", "longitude": 120.846521, "latitude": 32.017935 },
     { "stationOrder": 30, "stationName": "端平桥", "longitude": 120.850367, "latitude": 32.017192 },
     { "stationOrder": 31, "stationName": "口腔医院北院", "longitude": 120.854216, "latitude": 32.016573 },
-    { "stationOrder": 32, "stationName": "环西文化广场①", "longitude": 120.861244, "latitude": 32.014686 }
+    { "stationOrder": 32, "stationName": "钟楼广场", "longitude": 120.857053, "latitude": 32.015928 },
+    { "stationOrder": 33, "stationName": "环西文化广场①", "longitude": 120.861244, "latitude": 32.014686 }
   ]
 }

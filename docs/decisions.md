@@ -1,5 +1,14 @@
 # 决策记录
 
+## 2026-06-05 DeepSeek 接入方式
+
+- AI 助手接入 DeepSeek 的位置放在 Python `ai-service`，前端和 Java 后端保持现有调用链。
+- Java 后端只透传可选 `model` 字段，不改变公开 API 响应格式。
+- AI 服务优先调用 DeepSeek Chat Completions；未配置 Key、外部调用失败或返回内容解析失败时，继续返回本地规则降级结果。
+- 支持模型限定为 `deepseek-v4-flash` 和 `deepseek-v4-pro`，默认使用 `deepseek-v4-flash`。
+- 不引入新依赖，DeepSeek HTTP 调用使用 Python 标准库实现。
+- 真实 API Key 只通过本地环境变量或被 Git 忽略的 `ai-service/.env` / `.env.local` 配置，不写入仓库文件。
+
 ## 2026-06-04 腾讯地图接入方式
 
 - 首页地图和线路详情地图使用腾讯地图 JavaScript API GL。
@@ -10,7 +19,7 @@
 
 ## 2026-06-04 初始化账号与调度规则
 
-- 第一版初始化管理员账号用户名为 `wjhadmin`，显示姓名为 `王家豪`，初始密码为 `123456`。
+- 第一版初始化管理员账号已创建，显示姓名为课程项目管理员。
 - 初始密码不得明文保存到数据库，后续 SQL 或后端初始化逻辑必须写入加密后的 `password_hash`。
 - 模拟车辆默认容量为 50 人。
 - 早高峰为 07:00-09:00，核心高峰为 07:30-08:30。
@@ -33,8 +42,8 @@
 
 ## 2026-06-04 第一版管理员密码哈希
 
-- 第一版管理员初始密码 `123456` 不明文入库。
+- 第一版管理员初始密码不明文入库。
 - `admin_user.password_hash` 使用 SHA-256 十六进制字符串。
 - 哈希输入格式为 `bus-agent:{username}:{plainPassword}`。
-- `wjhadmin` 初始密码哈希为 `616b36d689d7b76ea8ecc33ad287619c6bb121c2c00a49fdd32b52a52ff5567e`。
+- 初始化管理员密码哈希已写入 `sql/init_admin.sql`。
 - 后续 Java 登录接口必须按同一规则计算哈希并比对。

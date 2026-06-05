@@ -1,27 +1,34 @@
 <template>
-  <section class="page">
-    <div class="page-header">
+  <section class="page admin-command-page">
+    <div class="admin-command-hero">
       <div>
-        <h1 class="page-title">后台首页</h1>
-        <p class="page-subtitle">基础数据规模和今日系统状态</p>
+        <span class="command-kicker">Admin Operations</span>
+        <h1 class="page-title">后台调度控制台</h1>
+        <p class="page-subtitle">基础数据规模、今日运行状态和管理入口统一呈现。</p>
       </div>
-      <el-button @click="logout">退出登录</el-button>
+      <div class="admin-user-panel">
+        <span>管理员</span>
+        <strong>王家豪</strong>
+        <el-button size="small" @click="logout">退出登录</el-button>
+      </div>
     </div>
+
     <el-alert v-if="errorText" :title="errorText" type="error" show-icon style="margin-bottom: 12px" />
     <div class="metric-strip admin-metrics" v-loading="loading">
-      <div v-for="item in metrics" :key="item.label" class="panel metric compact">
+      <div v-for="item in metrics" :key="item.label" class="panel metric compact admin-metric-card">
         <div class="metric-label">{{ item.label }}</div>
         <div class="metric-value">{{ item.value }}</div>
       </div>
     </div>
 
     <div class="admin-dashboard-grid">
-      <div class="panel">
+      <div class="panel admin-operation-card">
         <div class="panel-section-head">
           <div>
             <span>操作</span>
             <strong>快捷入口</strong>
           </div>
+          <el-tag type="success">可演示</el-tag>
         </div>
         <div class="quick-entry-grid">
           <button @click="$router.push('/admin/data')">
@@ -38,13 +45,13 @@
           </button>
         </div>
       </div>
-      <div class="panel">
+      <div class="panel admin-health-card">
         <div class="panel-section-head">
           <div>
             <span>状态</span>
-            <strong>今日概览</strong>
+            <strong>今日运行概览</strong>
           </div>
-          <el-tag type="success">可演示</el-tag>
+          <el-tag :type="summary.rideCount ? 'success' : 'warning'">{{ summary.rideCount ? '数据就绪' : '等待数据' }}</el-tag>
         </div>
         <div class="admin-health-list">
           <div>
@@ -60,7 +67,10 @@
             <strong>{{ baseDataCount }}</strong>
           </div>
         </div>
-        <p class="muted">当前数据库可支撑游客分析、线路地图展示和 AI 建议生成。</p>
+        <div class="admin-readiness">
+          <span>演示闭环</span>
+          <strong>游客分析、线路地图、AI 建议和后台维护均已接入数据库。</strong>
+        </div>
       </div>
     </div>
   </section>

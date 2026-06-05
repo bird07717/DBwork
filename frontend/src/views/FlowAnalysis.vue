@@ -1,9 +1,10 @@
 <template>
-  <section class="page">
-    <div class="page-header">
+  <section class="page analysis-page">
+    <div class="page-header analysis-hero">
       <div>
-        <h1 class="page-title">客流分析</h1>
-        <p class="page-subtitle">按线路查看日趋势、站点排行和时段对比</p>
+        <span class="command-kicker">Flow Intelligence</span>
+        <h1 class="page-title">客流分析看板</h1>
+        <p class="page-subtitle">按线路查看趋势、站点排行、时段压力和调度风险解释</p>
       </div>
       <div class="page-actions">
         <el-button @click="$router.push(`/routes/${routeId}`)">线路详情</el-button>
@@ -21,9 +22,34 @@
       </div>
       <div>
         <span>日期范围</span>
-        <el-date-picker v-model="range" type="daterange" value-format="YYYY-MM-DD" start-placeholder="开始日期" end-placeholder="结束日期" @change="load" />
+        <el-date-picker v-model="range" type="daterange" value-format="YYYY-MM-DD" start-placeholder="开始日期" end-placeholder="结束日期" :clearable="false" @change="load" />
       </div>
       <el-button type="primary" @click="load">刷新分析</el-button>
+    </div>
+
+    <div class="analysis-insight-panel" v-loading="loading">
+      <div class="insight-primary" :class="`status-${overallLevel}`">
+        <span>调度判断</span>
+        <strong>{{ pressureInsight.title }}</strong>
+        <p>{{ pressureInsight.detail }}</p>
+      </div>
+      <div class="insight-grid">
+        <div>
+          <span>趋势变化</span>
+          <strong>{{ flowTrend.label }}</strong>
+          <em>{{ flowTrend.detail }}</em>
+        </div>
+        <div>
+          <span>压力站点</span>
+          <strong>{{ topStation?.stationName || '-' }}</strong>
+          <em>{{ topStation ? `${formatNumber(Number(topStation.boardingCount || 0))} 人次上车` : '等待数据' }}</em>
+        </div>
+        <div>
+          <span>高峰策略</span>
+          <strong>{{ busiestPeriod?.periodName || '-' }}</strong>
+          <em>班均 {{ formatNumber(Number(busiestPeriod?.avgPassengerPerSchedule || 0)) }} 人次</em>
+        </div>
+      </div>
     </div>
 
     <div class="metric-strip" v-loading="loading">
@@ -39,7 +65,7 @@
         <div class="metric-label">高峰时段</div>
         <div class="metric-value small">{{ busiestPeriod?.periodName || '-' }}</div>
       </div>
-      <div class="panel metric compact">
+      <div class="panel metric compact" :class="`metric-${overallLevel}`">
         <div class="metric-label">平均满载率</div>
         <div class="metric-value">{{ formatPercent(avgPeakLoadRate) }}</div>
       </div>
@@ -52,6 +78,7 @@
             <span>趋势</span>
             <strong>日客流时间序列</strong>
           </div>
+          <el-tag :type="flowTrend.type">{{ flowTrend.label }}</el-tag>
         </div>
         <ChartBox :option="routeFlowOption" />
       </div>
@@ -61,6 +88,7 @@
             <span>站点</span>
             <strong>上车客流排行</strong>
           </div>
+          <el-tag type="danger" v-if="topStation">热点站点</el-tag>
         </div>
         <ChartBox :option="stationOption" />
       </div>
@@ -70,6 +98,7 @@
             <span>时段</span>
             <strong>高峰压力对比</strong>
           </div>
+          <el-tag :type="tagType(overallLevel)">{{ statusText(overallLevel) }}</el-tag>
         </div>
         <ChartBox :option="peakOption" />
       </div>
@@ -98,6 +127,8 @@ import { useRoute } from 'vue-router'
 import ChartBox from '../components/ChartBox.vue'
 import { api, defaultRange, type RouteItem } from '../services/domain'
 
+type StatusLevel = 'high' | 'normal' | 'low'
+
 const routes = ref<RouteItem[]>([])
 const currentRoute = useRoute()
 const routeId = ref(1)
@@ -114,6 +145,35 @@ const busiestPeriod = computed(() => [...peakAnalysis.value].sort((a, b) => Numb
 const avgPeakLoadRate = computed(() => {
   if (!peakAnalysis.value.length) return 0
   return peakAnalysis.value.reduce((sum, item) => sum + clampPercent(Number(item.avgLoadRate || 0)), 0) / peakAnalysis.value.length
+})
+const overallLevel = computed<StatusLevel>(() => (avgPeakLoadRate.value >= 85 ? 'high' : avgPeakLoadRate.value >= 60 ? 'normal' : 'low'))
+const flowTrend = computed(() => {
+  if (routeFlow.value.length < 2) return { label: '数据不足', detail: '当前区间不足以判断趋势', type: 'info' as const }
+  const first = Number(routeFlow.value[0].passengerCount || 0)
+  const last = Number(routeFlow.value[routeFlow.value.length - 1].passengerCount || 0)
+  const diff = last - first
+  const rate = first ? (diff / first) * 100 : 0
+  if (Math.abs(rate) < 5) return { label: '基本平稳', detail: `首尾日客流变化 ${formatSignedPercent(rate)}`, type: 'success' as const }
+  if (rate > 0) return { label: '客流上升', detail: `较区间首日上升 ${formatPercent(rate)}`, type: 'warning' as const }
+  return { label: '客流回落', detail: `较区间首日下降 ${formatPercent(Math.abs(rate))}`, type: 'success' as const }
+})
+const pressureInsight = computed(() => {
+  if (overallLevel.value === 'high') {
+    return {
+      title: '高峰班次已进入高客流区间',
+      detail: `${busiestPeriod.value?.periodName || '高峰时段'}平均满载率偏高，建议优先关注车辆间隔、热点站点疏导和临时加班车。`
+    }
+  }
+  if (overallLevel.value === 'normal') {
+    return {
+      title: '线路运行需要持续关注',
+      detail: `${busiestPeriod.value?.periodName || '重点时段'}存在一定客流压力，建议观察站点排行并准备弹性调度预案。`
+    }
+  }
+  return {
+    title: '线路整体运行平稳',
+    detail: '当前区间满载率处于低风险状态，可保持常规班次并关注突发客流变化。'
+  }
 })
 const routeFlowOption = computed(() => ({
   color: ['#2f8f83'],
@@ -177,12 +237,24 @@ function clampPercent(value: number) {
   return Math.max(0, Math.min(100, value))
 }
 
+function statusText(level: StatusLevel) {
+  return level === 'high' ? '高客流' : level === 'normal' ? '关注' : '平稳'
+}
+
+function tagType(level: StatusLevel) {
+  return level === 'high' ? 'danger' : level === 'normal' ? 'warning' : 'success'
+}
+
 function formatNumber(value = 0) {
   return Math.round(value).toLocaleString('zh-CN')
 }
 
 function formatPercent(value = 0) {
   return `${Number(value || 0).toFixed(1)}%`
+}
+
+function formatSignedPercent(value = 0) {
+  return `${value >= 0 ? '+' : ''}${Number(value || 0).toFixed(1)}%`
 }
 
 onMounted(async () => {

@@ -1,10 +1,10 @@
-import os
 from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .ai_engine import analyze_flow, dispatch_advice
+from .deepseek_client import llm_configured
 from .schemas import AnalyzeFlowRequest, AnalyzeFlowResponse, DispatchAdviceRequest, DispatchAdviceResponse
 
 
@@ -24,7 +24,7 @@ def health() -> dict[str, Any]:
     return {
         "service": "bus-agent-ai-service",
         "status": "up",
-        "llmConfigured": bool(os.getenv("LLM_API_KEY")),
+        "llmConfigured": llm_configured(),
     }
 
 

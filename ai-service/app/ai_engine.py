@@ -8,6 +8,7 @@ from .schemas import (
     DispatchAdviceRequest,
     DispatchAdviceResponse,
 )
+from .deepseek_client import analyze_with_deepseek
 
 
 PERIOD_NAMES = {
@@ -18,6 +19,10 @@ PERIOD_NAMES = {
 
 
 def analyze_flow(request: AnalyzeFlowRequest) -> AnalyzeFlowResponse:
+    deepseek_response = analyze_with_deepseek(request)
+    if deepseek_response:
+        return deepseek_response
+
     route_name = _route_name(request.route)
     stats = request.statistics
     question = request.question or ""
