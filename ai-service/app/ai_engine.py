@@ -41,27 +41,27 @@ def analyze_flow(request: AnalyzeFlowRequest) -> AnalyzeFlowResponse:
     busiest_period = _busiest_period(peak_analysis)
 
     key_findings = [
-        f"{request.startDate} 至 {request.endDate}，{route_name}累计客流约 {int(total_passengers)} 人次。",
-        f"客流最高站点为 {top_station}。",
-        f"客流最高时段为 {busiest_period}。",
-        f"班次平均满载率约 {avg_load:.2f}%。",
+        f"关键指标：{request.startDate} 至 {request.endDate}，{route_name}累计客流约 {int(total_passengers)} 人次。",
+        f"站点压力：客流最高站点为 {top_station}。",
+        f"时段判断：客流最高时段为 {busiest_period}。",
+        f"满载率依据：班次平均满载率约 {avg_load:.2f}%。",
     ]
     if avg_load >= 85:
-        suggestion = "满载率偏高，建议优先评估高峰加密班次。"
-        trend = "线路存在明显拥挤压力。"
+        suggestion = "调度建议：满载率偏高，建议优先评估高峰加密班次或缩短发车间隔。"
+        trend = "异常判断：线路存在明显拥挤压力，已超过高峰加车关注阈值。"
     elif avg_load >= 60:
-        suggestion = "建议维持当前班次，并持续观察重点站点客流。"
-        trend = "线路客流处于中高水平。"
+        suggestion = "调度建议：建议维持当前班次，并持续观察重点站点客流。"
+        trend = "异常判断：线路客流处于中高水平，需保持调度关注。"
     else:
-        suggestion = "当前满载率不高，可重点关注站点客流分布和低峰资源利用。"
-        trend = "线路整体承载压力可控。"
+        suggestion = "调度建议：当前满载率不高，可重点关注站点客流分布和低峰资源利用。"
+        trend = "异常判断：线路整体承载压力可控。"
 
     summary = _question_summary(question, route_name, trend, top_station, busiest_period, avg_load)
     return AnalyzeFlowResponse(
         summary=summary,
         keyFindings=key_findings,
         trend=trend,
-        suggestion=suggestion,
+        suggestion=f"{suggestion} 风险提示：当前客流为演示模拟数据，未接入实时车辆 GPS，建议结合更长周期和实际排班复核。数据依据：线路日客流、站点排行、时段对比和满载率统计。",
         fallback=True,
     )
 
@@ -84,12 +84,12 @@ def _analyze_route_ranking(
     return AnalyzeFlowResponse(
         summary=summary,
         keyFindings=[
-            f"全部线路累计客流约 {total} 人次。",
+            f"关键指标：全部线路累计客流约 {total} 人次。",
             f"线路排行：{ranking_text}。",
-            f"最高客流线路为 {top_name}。",
+            f"异常判断：最高客流线路为 {top_name}，需优先关注其高峰班次和热点站点。",
         ],
-        trend="已按线路汇总客流排名。",
-        suggestion="优先关注客流最高线路的高峰班次和重点站点压力。",
+        trend="异常判断：已按线路汇总客流排名，线路间客流差异可作为调度优先级依据。",
+        suggestion="调度建议：优先关注客流最高线路的高峰班次和重点站点压力。风险提示：全线路模式未展开单站明细，建议选择具体线路复核站点压力。数据依据：全线路客流排行统计。",
         fallback=True,
     )
 

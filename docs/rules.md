@@ -1,6 +1,6 @@
 # 项目特定规则
 
-- 阶段 1 到阶段 6 的所有开发任务必须遵守 `docs/execution-workflow.md`。
-- 阶段 1 到阶段 6 的任务拆分和阶段验收以 `docs/task-breakdown-v1.md` 为准。
-- 阶段 7 由用户自行测试、截图、验收和整理最终报告素材；如用户要求协助修复，再按当前控制文档执行对应任务。
-- 文档更新采用轻量规则：任务开始读取 `rules/status/decisions/next`；任务结束只在状态变化时更新 `status`，形成长期决策时更新 `decisions`，小任务不频繁写 `log`。
+- 当前项目已完成第一版可演示版本，后续任务以用户当前明确要求和 `docs/next.md` 为准。
+- 执行任务前读取 `docs/status.md`、`docs/decisions.md`、`docs/next.md`，必要时再读取相关设计文档或源码。
+- 文档更新采用轻量规则：状态变化时更新 `docs/status.md`，形成长期决策时更新 `docs/decisions.md`，小任务不频繁写 `docs/log.md`。
+- 下一版范围讨论以 `docs/mvp-v2.md` 为草稿骨架；在用户确认前不要自行填充具体功能内容。

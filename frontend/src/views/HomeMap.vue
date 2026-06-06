@@ -239,6 +239,15 @@ const operationCards = computed<{ label: string; value: string; note: string; to
 const alertItems = computed<AlertItem[]>(() => {
   const items: AlertItem[] = []
   const topHighStation = stations.value.find((station) => station.statusLevel === 'high')
+  if (!selectedRouteStat.value.passengerCount) {
+    items.push({
+      id: 'empty-data',
+      title: '当前日期范围暂无客流数据',
+      value: '请切换区间',
+      level: 'normal'
+    })
+    return items
+  }
   if (selectedRouteStat.value.avgLoadRate >= 85) {
     items.push({
       id: 'load-rate',
@@ -371,14 +380,11 @@ function statusByLoad(value: number): StatusLevel {
 }
 
 function statusByPassenger(value: number, values: number[]): StatusLevel {
-  const counts = values.filter((count) => count > 0).sort((a, b) => a - b)
-  if (!value || !counts.length) return 'low'
-  const low = counts[Math.floor((counts.length - 1) * 0.33)] || 0
-  const high = counts[Math.floor((counts.length - 1) * 0.67)] || 0
-  if (high <= low) return 'normal'
-  if (value >= high) return 'high'
-  if (value <= low) return 'low'
-  return 'normal'
+  const max = Math.max(0, ...values)
+  if (!value || !max) return 'low'
+  if (value >= max * 0.7) return 'high'
+  if (value >= max * 0.35) return 'normal'
+  return 'low'
 }
 
 function statusText(level: StatusLevel) {

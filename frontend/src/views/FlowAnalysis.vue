@@ -49,6 +49,11 @@
           <strong>{{ busiestPeriod?.periodName || '-' }}</strong>
           <em>班均 {{ formatNumber(Number(busiestPeriod?.avgPassengerPerSchedule || 0)) }} 人次</em>
         </div>
+        <div>
+          <span>线路对比</span>
+          <strong>{{ topRouteComparison?.routeName || '-' }}</strong>
+          <em>{{ topRouteComparison ? `区间客流 ${formatNumber(topRouteComparison.passengerCount)}` : '等待数据' }}</em>
+        </div>
       </div>
     </div>
 
@@ -56,6 +61,14 @@
       <div class="panel metric compact">
         <div class="metric-label">区间总客流</div>
         <div class="metric-value">{{ formatNumber(totalFlow) }}</div>
+      </div>
+      <div class="panel metric compact">
+        <div class="metric-label">日均客流</div>
+        <div class="metric-value">{{ formatNumber(avgDailyFlow) }}</div>
+      </div>
+      <div class="panel metric compact">
+        <div class="metric-label">高峰客流占比</div>
+        <div class="metric-value">{{ formatPercent(peakPassengerRatio) }}</div>
       </div>
       <div class="panel metric compact">
         <div class="metric-label">最高站点</div>
@@ -102,6 +115,16 @@
         </div>
         <ChartBox :option="peakOption" />
       </div>
+      <div class="panel chart-panel">
+        <div class="panel-section-head">
+          <div>
+            <span>线路</span>
+            <strong>线路客流与满载对比</strong>
+          </div>
+          <el-tag type="success" v-if="routeComparison.length">全线路</el-tag>
+        </div>
+        <ChartBox :option="routeComparisonOption" />
+      </div>
       <div class="panel span-2">
         <div class="panel-section-head">
           <div>
@@ -116,6 +139,17 @@
             <em>平均满载率 {{ formatPercent(clampPercent(Number(period.avgLoadRate || 0))) }}</em>
           </div>
         </div>
+      </div>
+      <div class="panel span-2 insight-list-panel">
+        <div class="panel-section-head">
+          <div>
+            <span>结论</span>
+            <strong>自动分析说明</strong>
+          </div>
+        </div>
+        <ol class="analysis-insight-list">
+          <li v-for="item in analysisInsights" :key="item">{{ item }}</li>
+        </ol>
       </div>
     </div>
   </section>
@@ -136,12 +170,31 @@ const range = ref<[string, string]>(defaultRange())
 const routeFlow = ref<Record<string, unknown>[]>([])
 const stationFlow = ref<Record<string, unknown>[]>([])
 const peakAnalysis = ref<Record<string, unknown>[]>([])
+const routeComparison = ref<RouteComparisonItem[]>([])
 const loading = ref(false)
 const errorText = ref('')
+let loadSeq = 0
+
+interface RouteComparisonItem {
+  routeId: number
+  routeName: string
+  passengerCount: number
+  avgLoadRate: number
+  hotStationCount: number
+}
 
 const totalFlow = computed(() => routeFlow.value.reduce((sum, item) => sum + Number(item.passengerCount || 0), 0))
+const avgDailyFlow = computed(() => (routeFlow.value.length ? totalFlow.value / routeFlow.value.length : 0))
 const topStation = computed(() => stationFlow.value[0])
 const busiestPeriod = computed(() => [...peakAnalysis.value].sort((a, b) => Number(b.avgPassengerPerSchedule || 0) - Number(a.avgPassengerPerSchedule || 0))[0])
+const topRouteComparison = computed(() => [...routeComparison.value].sort((a, b) => b.passengerCount - a.passengerCount)[0])
+const peakPassengerRatio = computed(() => {
+  if (!totalFlow.value) return 0
+  const peakPassengers = peakAnalysis.value
+    .filter((item) => item.periodType === 'morning_peak' || item.periodType === 'evening_peak')
+    .reduce((sum, item) => sum + Number(item.passengerCount || 0), 0)
+  return (peakPassengers / totalFlow.value) * 100
+})
 const avgPeakLoadRate = computed(() => {
   if (!peakAnalysis.value.length) return 0
   return peakAnalysis.value.reduce((sum, item) => sum + clampPercent(Number(item.avgLoadRate || 0)), 0) / peakAnalysis.value.length
@@ -181,7 +234,16 @@ const routeFlowOption = computed(() => ({
   tooltip: { trigger: 'axis' },
   xAxis: { type: 'category', data: routeFlow.value.map((item) => item.statDate) },
   yAxis: { type: 'value' },
-  series: [{ name: '客流', type: 'line', smooth: true, areaStyle: { opacity: 0.14 }, data: routeFlow.value.map((item) => item.passengerCount) }]
+  series: [
+    {
+      name: '客流',
+      type: 'line',
+      smooth: true,
+      areaStyle: { opacity: 0.14 },
+      data: routeFlow.value.map((item) => item.passengerCount),
+      markLine: { symbol: 'none', data: [{ type: 'average', name: '平均值' }], lineStyle: { color: '#f2b84b' } }
+    }
+  ]
 }))
 
 const stationOption = computed(() => ({
@@ -207,23 +269,104 @@ const peakOption = computed(() => ({
   },
   xAxis: { type: 'category', data: peakAnalysis.value.map((item) => item.periodName) },
   yAxis: { type: 'value' },
-  series: [{ name: '班均客流', type: 'bar', data: peakAnalysis.value.map((item) => item.avgPassengerPerSchedule), itemStyle: { color: '#de6b48', borderRadius: [4, 4, 0, 0] } }]
+  series: [
+    { name: '班均客流', type: 'bar', data: peakAnalysis.value.map((item) => item.avgPassengerPerSchedule), itemStyle: { color: '#de6b48', borderRadius: [4, 4, 0, 0] } },
+    { name: '平均满载率', type: 'line', yAxisIndex: 0, data: peakAnalysis.value.map((item) => clampPercent(Number(item.avgLoadRate || 0))), itemStyle: { color: '#3b82f6' } }
+  ]
 }))
+
+const routeComparisonOption = computed(() => ({
+  color: ['#2f8f83', '#3b82f6'],
+  grid: { left: 56, right: 28, top: 42, bottom: 42, containLabel: true },
+  tooltip: {
+    trigger: 'axis',
+    formatter: (items: any[]) => {
+      const index = items?.[0]?.dataIndex ?? 0
+      const row = routeComparison.value[index]
+      if (!row) return ''
+      return `${row.routeName}<br/>区间客流：${formatNumber(row.passengerCount)}<br/>平均满载率：${formatPercent(row.avgLoadRate)}<br/>热点站点数：${row.hotStationCount}`
+    }
+  },
+  legend: { top: 4 },
+  xAxis: { type: 'category', data: routeComparison.value.map((item) => item.routeName) },
+  yAxis: { type: 'value' },
+  series: [
+    { name: '区间客流', type: 'bar', data: routeComparison.value.map((item) => item.passengerCount), itemStyle: { borderRadius: [4, 4, 0, 0] } },
+    { name: '平均满载率', type: 'line', data: routeComparison.value.map((item) => Number(item.avgLoadRate.toFixed(2))) }
+  ]
+}))
+
+const analysisInsights = computed(() => {
+  if (!routeFlow.value.length && !stationFlow.value.length && !peakAnalysis.value.length) {
+    return ['当前日期范围暂无客流统计数据，请切换日期范围或重新生成演示数据。']
+  }
+  const items: string[] = []
+  const maxDay = [...routeFlow.value].sort((a, b) => Number(b.passengerCount || 0) - Number(a.passengerCount || 0))[0]
+  if (maxDay) {
+    items.push(`所选线路区间总客流为 ${formatNumber(totalFlow.value)} 人次，日均约 ${formatNumber(avgDailyFlow.value)} 人次，最高日为 ${maxDay.statDate}。`)
+  }
+  if (topRouteComparison.value) {
+    items.push(`全线路对比中，${topRouteComparison.value.routeName} 客流最高，区间客流 ${formatNumber(topRouteComparison.value.passengerCount)} 人次。`)
+  }
+  if (busiestPeriod.value) {
+    items.push(`${busiestPeriod.value.periodName}班均客流最高，班均约 ${formatNumber(Number(busiestPeriod.value.avgPassengerPerSchedule || 0))} 人次，平均满载率 ${formatPercent(clampPercent(Number(busiestPeriod.value.avgLoadRate || 0)))}。`)
+  }
+  if (topStation.value) {
+    items.push(`${topStation.value.stationName} 是当前线路上车客流最高站点，占当前线路客流约 ${formatPercent((Number(topStation.value.boardingCount || 0) / Math.max(totalFlow.value, 1)) * 100)}。`)
+  }
+  if (overallLevel.value === 'high') {
+    items.push('当前平均满载率已超过高客流阈值，建议优先评估高峰加车或缩短发车间隔。')
+  } else if (overallLevel.value === 'normal') {
+    items.push('当前线路处于关注区间，建议维持班次并持续观察热点站点变化。')
+  } else {
+    items.push('当前线路整体承载压力平稳，可保持常规调度并关注异常日期波动。')
+  }
+  return items.slice(0, 5)
+})
 
 async function load() {
   if (!routeId.value || !range.value) return
+  const currentSeq = ++loadSeq
   try {
     loading.value = true
     errorText.value = ''
     const [start, end] = range.value
-    routeFlow.value = await api.routeFlow(routeId.value, start, end)
-    stationFlow.value = await api.stationFlow(routeId.value, start, end)
-    peakAnalysis.value = await api.peakAnalysis(routeId.value, start, end)
+    const [nextRouteFlow, nextStationFlow, nextPeakAnalysis, nextRouteComparison] = await Promise.all([
+      api.routeFlow(routeId.value, start, end),
+      api.stationFlow(routeId.value, start, end),
+      api.peakAnalysis(routeId.value, start, end),
+      loadRouteComparison(start, end)
+    ])
+    if (currentSeq !== loadSeq) return
+    routeFlow.value = nextRouteFlow
+    stationFlow.value = nextStationFlow
+    peakAnalysis.value = nextPeakAnalysis
+    routeComparison.value = nextRouteComparison
   } catch (error) {
+    if (currentSeq !== loadSeq) return
     errorText.value = (error as Error).message || '客流分析数据加载失败，请稍后刷新。'
   } finally {
-    loading.value = false
+    if (currentSeq === loadSeq) loading.value = false
   }
+}
+
+async function loadRouteComparison(start: string, end: string): Promise<RouteComparisonItem[]> {
+  const rows = await Promise.all(
+    routes.value.map(async (route) => {
+      const [flowRows, loadRows, stationRows] = await Promise.all([
+        api.routeFlow(route.id, start, end),
+        api.loadRate(route.id, start, end),
+        api.stationFlow(route.id, start, end, 50)
+      ])
+      const passengerCount = flowRows.reduce((sum, row) => sum + Number(row.passengerCount || 0), 0)
+      const rates = loadRows.map((row) => clampPercent(Number(row.loadRate || 0))).filter((value) => value > 0)
+      const avgLoadRate = rates.length ? rates.reduce((sum, value) => sum + value, 0) / rates.length : 0
+      const maxStationFlow = Math.max(0, ...stationRows.map((row) => Number(row.boardingCount || 0)))
+      const hotStationCount = maxStationFlow ? stationRows.filter((row) => Number(row.boardingCount || 0) >= maxStationFlow * 0.7).length : 0
+      return { routeId: route.id, routeName: route.routeName, passengerCount, avgLoadRate, hotStationCount }
+    })
+  )
+  return rows.sort((a, b) => b.passengerCount - a.passengerCount)
 }
 
 function periodLevel(period: Record<string, unknown>) {

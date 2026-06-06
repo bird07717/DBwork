@@ -57,6 +57,21 @@
 
           <div class="decision-columns">
             <div class="ai-report-block">
+              <span>关键指标</span>
+              <ul>
+                <li v-for="item in keyMetrics" :key="item">{{ item }}</li>
+              </ul>
+            </div>
+            <div class="ai-report-block">
+              <span>异常判断</span>
+              <ul>
+                <li v-for="item in anomalyItems" :key="item">{{ item }}</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="decision-columns">
+            <div class="ai-report-block">
               <span>关键发现</span>
               <ul>
                 <li v-for="item in findings" :key="item">{{ item }}</li>
@@ -79,6 +94,13 @@
               <strong>{{ suggestionLevel.label }}</strong>
             </div>
             <p>{{ analysis.suggestion || '暂无建议' }}</p>
+          </div>
+
+          <div class="ai-report-block data-basis-block">
+            <span>数据依据</span>
+            <ul>
+              <li v-for="item in dataBasis" :key="item">{{ item }}</li>
+            </ul>
           </div>
 
           <div class="ai-report-actions">
@@ -111,12 +133,67 @@ const loading = ref(false)
 const routeLoading = ref(false)
 const errorText = ref('')
 const analysis = ref<any>()
+const statistics = ref<Record<string, any>>({})
 
 const selectedRouteName = computed(() => routes.value.find((route) => route.id === routeId.value)?.routeName || '全部线路')
 const reportTitle = computed(() => analysis.value?.summary || '等待生成分析报告')
 const findings = computed<string[]>(() => {
-  const items = analysis.value?.keyFindings || []
+  const items = Array.isArray(analysis.value?.keyFindings) ? analysis.value.keyFindings : []
   return items.length ? items : ['暂无关键发现，请调整线路、日期范围或问题后重新生成。']
+})
+const keyMetrics = computed(() => {
+  if (routeId.value <= 0) {
+    const ranking = statistics.value.routeRanking || []
+    const total = ranking.reduce((sum: number, row: any) => sum + Number(row.passengerCount || 0), 0)
+    const top = ranking[0]
+    return [
+      `统计区间：${range.value[0]} 至 ${range.value[1]}`,
+      `全线路累计客流：${formatNumber(total)} 人次`,
+      `客流最高线路：${top?.routeName || '暂无数据'}${top ? `，${formatNumber(Number(top.passengerCount || 0))} 人次` : ''}`
+    ]
+  }
+  const routeFlow = statistics.value.routeFlow || []
+  const stationFlow = statistics.value.stationFlow || []
+  const peakAnalysis = statistics.value.peakAnalysis || []
+  const loadRate = statistics.value.loadRate || []
+  const total = routeFlow.reduce((sum: number, row: any) => sum + Number(row.passengerCount || 0), 0)
+  const avgDaily = routeFlow.length ? total / routeFlow.length : 0
+  const avgLoad = average(loadRate.map((row: any) => clampPercent(Number(row.loadRate || 0))))
+  const topStation = stationFlow[0]
+  const busiest = [...peakAnalysis].sort((a: any, b: any) => Number(b.avgPassengerPerSchedule || 0) - Number(a.avgPassengerPerSchedule || 0))[0]
+  return [
+    `统计区间：${range.value[0]} 至 ${range.value[1]}`,
+    `区间总客流：${formatNumber(total)} 人次，日均约 ${formatNumber(avgDaily)} 人次`,
+    `平均满载率：${formatPercent(avgLoad)}`,
+    `热点站点：${topStation?.stationName || '暂无数据'}`,
+    `客流最高时段：${busiest?.periodName || '暂无数据'}`
+  ]
+})
+const anomalyItems = computed(() => {
+  if (routeId.value <= 0) {
+    const ranking = statistics.value.routeRanking || []
+    if (!ranking.length) return ['当前区间暂无全线路客流数据，不能判断异常。']
+    const top = ranking[0]
+    const bottom = ranking[ranking.length - 1]
+    const ratio = Number(bottom?.passengerCount || 0) ? Number(top?.passengerCount || 0) / Number(bottom?.passengerCount || 0) : 0
+    return [
+      ratio >= 2 ? `线路间客流差异明显，${top.routeName} 约为 ${bottom.routeName} 的 ${ratio.toFixed(1)} 倍。` : '线路间客流差异处于可解释范围。',
+      '全线路模式未细分站点压力，建议选择单条线路生成更具体的调度判断。'
+    ]
+  }
+  const peakAnalysis = statistics.value.peakAnalysis || []
+  const stationFlow = statistics.value.stationFlow || []
+  const loadRate = statistics.value.loadRate || []
+  const avgLoad = average(loadRate.map((row: any) => clampPercent(Number(row.loadRate || 0))))
+  const topStation = stationFlow[0]
+  const totalStationFlow = stationFlow.reduce((sum: number, row: any) => sum + Number(row.boardingCount || 0), 0)
+  const topStationRatio = totalStationFlow ? (Number(topStation?.boardingCount || 0) / totalStationFlow) * 100 : 0
+  const busiest = [...peakAnalysis].sort((a: any, b: any) => Number(b.avgPassengerPerSchedule || 0) - Number(a.avgPassengerPerSchedule || 0))[0]
+  return [
+    avgLoad >= 85 ? `平均满载率 ${formatPercent(avgLoad)} 已超过 85% 加车阈值。` : avgLoad >= 60 ? `平均满载率 ${formatPercent(avgLoad)} 处于 60%-85% 观察区间。` : `平均满载率 ${formatPercent(avgLoad)} 未达到高客流阈值。`,
+    topStationRatio >= 20 ? `${topStation?.stationName || '热点站点'} 上车占比较高，存在站点客流集中现象。` : '站点客流集中度未达到明显异常水平。',
+    busiest ? `${busiest.periodName} 是当前区间压力最高时段，班均客流约 ${formatNumber(Number(busiest.avgPassengerPerSchedule || 0))} 人次。` : '当前区间暂无时段对比数据。'
+  ]
 })
 const analysisMode = computed(() => {
   if (!analysis.value) return { label: '待分析', type: 'info' as const }
@@ -129,20 +206,30 @@ const suggestionLevel = computed(() => {
   return { label: '常规优化建议', level: 'low' }
 })
 const riskItems = computed(() => {
-  const text = findings.value.join('；')
-  const risks = [
+  const text = anomalyItems.value.join('；')
+  return [
     {
       title: suggestionLevel.value.level === 'high' ? '高客流风险' : suggestionLevel.value.level === 'normal' ? '关注客流波动' : '运行平稳',
       detail: text,
       level: suggestionLevel.value.level
     },
     {
-      title: '调度执行建议',
-      detail: analysis.value?.suggestion || '保持常规班次，持续观察高峰时段和热点站点。',
-      level: suggestionLevel.value.level
+      title: '数据边界',
+      detail: '当前运营客流为演示模拟数据，建议答辩讲解时表述为基于调查口径生成的课程项目数据。',
+      level: 'normal'
+    },
+    {
+      title: '实时性边界',
+      detail: '系统未接入实时车辆 GPS，当前报告不能判断车辆实时拥堵位置。',
+      level: 'low'
     }
   ]
-  return risks
+})
+const dataBasis = computed(() => {
+  if (routeId.value <= 0) {
+    return ['全线路客流排行统计', '线路基础信息', '用户输入的问题和日期范围']
+  }
+  return ['线路日客流趋势统计', '站点上车客流排行', '早晚高峰与平峰班均客流', '班次满载率统计', '用户输入的问题和日期范围']
 })
 const examples = [
   '最近一周哪条线路客流最高？',
@@ -161,11 +248,29 @@ async function submit() {
     const [startDate, endDate] = range.value
     const data = await api.analyze({ question: question.value, model: model.value, routeId: routeId.value, startDate, endDate })
     analysis.value = data.analysis
+    statistics.value = (data.statistics as Record<string, any>) || {}
   } catch (error) {
     ElMessage.error((error as Error).message)
   } finally {
     loading.value = false
   }
+}
+
+function average(values: number[]) {
+  const nums = values.filter((value) => value > 0)
+  return nums.length ? nums.reduce((sum, value) => sum + value, 0) / nums.length : 0
+}
+
+function clampPercent(value: number) {
+  return Math.max(0, Math.min(100, value))
+}
+
+function formatNumber(value = 0) {
+  return Math.round(value).toLocaleString('zh-CN')
+}
+
+function formatPercent(value = 0) {
+  return `${Number(value || 0).toFixed(1)}%`
 }
 
 onMounted(async () => {

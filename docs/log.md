@@ -1,5 +1,12 @@
 # 执行记录
 
+## 2026-06-06 MVP v2 增强完成
+
+- 任务：按 `docs/mvp-v2.md` 完成答辩展示和简历技术亮点增强。
+- 变更：首页站点压力阈值和空数据告警补强；客流分析页新增日均客流、高峰占比、线路对比、自动分析说明和趋势平均线；AI 助手按结构化调度报告展示，并增强 DeepSeek Prompt、Python 本地规则降级和 Java 后端 AI 不可用降级文案；后台调度建议页新增指标依据、规则依据、AI 风险提示、热点站点 TOP 3 和历史详情展开；新增 `docs/demo-guide.md`、`docs/resume-highlights.md` 并更新 README、状态和当前任务文档。
+- 检查：`cd frontend && npm run build` 通过，保留既有 Vite chunk 体积警告；`python3 -m py_compile ai-service/app/*.py` 通过；`cd backend && ./mvnw test` 通过；Docker MySQL/Redis healthy；后端 `/api/health` 返回数据库和 Redis 均 `up`；AI `/health` 返回 `up`；前端 `http://localhost:5173/` 返回 200；公开线路和 AI 分析接口验证通过。
+- 结果：通过，进入浏览器人工验收和截图材料整理。
+
 ## 2026-06-05 收尾前初始化凭据展示清理
 
 - 任务：移除前端页面、README 和普通说明文档中公开展示的初始化管理员凭据。

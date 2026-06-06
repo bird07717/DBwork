@@ -240,14 +240,15 @@ python3 scripts/generate_mock_data.py --end-date 2026-06-30 --days 30
 
 ## 关键文档
 
-- `docs/requirements-v1.md`：需求文档
-- `docs/mvp-v1.md`：MVP 范围
+- `docs/mvp-v2.md`：下一版 MVP 草稿骨架
+- `docs/demo-guide.md`：MVP v2 演示流程和截图清单
+- `docs/resume-highlights.md`：简历与答辩亮点
+- `docs/status.md`：当前项目状态
+- `docs/next.md`：当前任务
+- `docs/decisions.md`：长期决策记录
 - `docs/database-design.md`：数据库设计
 - `docs/map-integration.md`：腾讯地图接入
 - `docs/data-import-guide.md`：线路与运营客流数据导入说明
-- `docs/task-breakdown-v1.md`：阶段 1 到阶段 6 任务拆分
-- `docs/execution-workflow.md`：任务执行规范
-- `docs/next.md`：当前任务
 
 ## 开发阶段
 
