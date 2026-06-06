@@ -3,18 +3,59 @@ dist/
 .venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 *.tsbuildinfo
 .env
 .env.local
 
+# Local AI/dev tooling
+.claude/
+.codex/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs / temp
+*.log
+*.tmp
+*.temp
+tmp/
+
+# Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Frontend
 frontend/node_modules/
 frontend/dist/
+frontend/.vite/
+frontend/coverage/
 frontend/.env
 frontend/.env.local
+
+# AI service
 ai-service/.venv/
+ai-service/.pytest_cache/
+ai-service/.mypy_cache/
+ai-service/.ruff_cache/
 ai-service/.env
 ai-service/.env.local
+
+# Backend
+backend/target/
 backend/.env
 backend/.env.local
-
-backend/target/
+backend/.idea/
+backend/.settings/
+backend/.project
+backend/.classpath
