@@ -42,7 +42,18 @@
           @select-station="selectStation"
         />
 
-        <div class="home-map-overlay">
+        <div class="home-map-overlay" :class="{ collapsed: overlayCollapsed }">
+          <button
+            class="map-overlay-handle"
+            type="button"
+            :aria-label="overlayCollapsed ? '展开态势卡片' : '收起态势卡片'"
+            :title="overlayCollapsed ? '展开态势卡片' : '收起态势卡片'"
+            :aria-expanded="!overlayCollapsed"
+            @click="overlayCollapsed = !overlayCollapsed"
+          >
+            <span aria-hidden="true">{{ overlayCollapsed ? '‹' : '›' }}</span>
+          </button>
+
           <div class="overlay-kicker">
             <span class="status-dot" :class="`status-${selectedRouteStatus}`"></span>
             {{ selectedRouteStatusLabel }} · 当前线路
@@ -193,6 +204,7 @@ const stations = ref<HomeStation[]>([])
 const routeStats = ref<Record<number, RouteStat>>({})
 const selectedRouteId = ref(0)
 const selectedStationId = ref(0)
+const overlayCollapsed = ref(true)
 const loading = ref(false)
 const routeLoading = ref(false)
 const errorText = ref('')
@@ -276,8 +288,9 @@ const alertItems = computed<AlertItem[]>(() => {
   return items.slice(0, 3)
 })
 
-async function selectRoute(id: number) {
+async function selectRoute(id: number, options: { expandOverlay?: boolean } = {}) {
   if (!id) return
+  if (options.expandOverlay !== false) overlayCollapsed.value = false
   if (selectedRouteId.value === id && routeStationCache.value[id]) {
     routeLoading.value = false
     stations.value = routeStationCache.value[id]
@@ -365,7 +378,7 @@ async function reloadByRange() {
     selectedStationId.value = 0
     const routeId = selectedRouteId.value || routes.value[0]?.id || 0
     await loadOverview(routes.value)
-    if (routeId) await selectRoute(routeId)
+    if (routeId) await selectRoute(routeId, { expandOverlay: false })
   } catch (error) {
     errorText.value = (error as Error).message || '首页统计区间数据加载失败，请稍后刷新。'
   } finally {
@@ -410,7 +423,7 @@ onMounted(async () => {
     routes.value = await api.routes()
     if (routes.value[0]) {
       await loadOverview(routes.value)
-      await selectRoute(routes.value[0].id)
+      await selectRoute(routes.value[0].id, { expandOverlay: false })
     }
   } catch (error) {
     errorText.value = (error as Error).message || '首页数据加载失败，请稍后刷新。'
